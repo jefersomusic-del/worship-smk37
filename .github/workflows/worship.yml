@@ -72,10 +72,18 @@ jobs:
           name: worship-smk37
           path: dist
 
-      - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Release (every build on main: the .fwsc to download)
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build-{0}', github.run_number) }}
+          name: WORSHIP SMK-37 Pro (build ${{ github.run_number }})
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          body: |
+            Firmware WORSHIP para o M-VAVE SMK-37 Pro. Baixe o arquivo .fwsc abaixo.
+            Antes de instalar, leia o WORSHIP.md: firmware V016 no teclado e backup completo da flash primeiro.
+            Ainda não testado num teclado de verdade. Por sua conta e risco.
           files: |
             dist/*.fwsc
             dist/SHA256SUMS
