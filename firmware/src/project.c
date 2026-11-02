@@ -1248,6 +1248,9 @@ static void settings_poll(void)
     slc_store_poll();                              /* SLICE's slices edited on the SLICES page */
 #endif
     if (!persist_pending || !flash_ok || transport_busy() ||
+#if FELUCCA_WORSHIP
+        wp_sounding() ||                           /* (WORSHIP's pad: an erase would cut it; after it stops) */
+#endif
         (persist_pending == 2u && (uint32_t)(fm1_ms - persist_retry_ms) < 1000u))
         return;
     p = persist_saved;
@@ -1340,6 +1343,10 @@ static int autosave_quiet(void)
     uint32_t k, i;
     if (transport_busy() || fm1_in.notes || fm1_in.buttons)
         return 0;
+#if FELUCCA_WORSHIP
+    if (wp_sounding())                                 /* WORSHIP's pad: an erase would cut it */
+        return 0;
+#endif
     for (k = 0; k < NTRK; k++)
         for (i = 0; i < NVOICE; i++)
             if (trk[k].v[i].active)

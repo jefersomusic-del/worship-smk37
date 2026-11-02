@@ -89,6 +89,13 @@ static void smk_faders(void)
 {
     static uint8_t last[4] = {0xFF, 0xFF, 0xFF, 0xFF};
     uint32_t i;
+#if FELUCCA_WORSHIP
+    if (wor_on) {                                         /* WORSHIP: TECLAS, PAD, LEAD, AMBIENCIA */
+        wor_faders();
+        smk_fbank_new = 1;                                /* (back in the synthesizer: each fader waits to move) */
+        return;
+    }
+#endif
     if (smk_fbank_new) {                                  /* a new bank: wait for each fader to move */
         smk_fbank_new = 0;
         for (i = 0; i < 4u; i++)
@@ -298,6 +305,9 @@ static void fm1_main(void)
         settings_save();
     }
     autosave_boot(boot_clean);                /* (1.2) the last session's music, under the splash */
+#if FELUCCA_WORSHIP
+    wor_boot();                               /* WORSHIP: the setlist, its sounds on tracks 1 and 2, on at power-on */
+#endif
     for (ms = 0; ms < 400u; ms += 10u) {      /* the splash; the pot followed (MIDI IN plays under it) */
         fm1_delay_ms(10);
         master_poll();

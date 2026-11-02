@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WORSHIP SMK-37 Simulador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* one visual world: the instrument's dark panel; amber = the pad, red = button LEDs, blue = the setlist */
+  --bg: #0b111a;
+  --panel: #131c29;
+  --well: #0e151f;
+  --line: #243245;
+  --ink: #e6ecf3;
+  --mute: #8193a8;
+  --amber: #ff9a1f;
+  --led: #ff3b3b;
+  --blue: #3fb4ff;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); }
+body { padding: 20px 16px 40px; }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; }
+h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: .01em; text-wrap: balance; }
+h1 span { color: var(--amber); }
+.sub { margin: 4px 0 0; color: var(--mute); font-size: 14px; max-width: 62ch; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { font: 500 14px var(--font-body); color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+       border-radius: 8px; padding: 9px 14px; cursor: pointer; }
+.btn:hover { border-color: #3a4d66; }
+.btn.primary { background: var(--amber); color: #1a1102; border-color: var(--amber); font-weight: 600; }
+.btn:focus-visible, .key:focus-visible, .pad:focus-visible, .hw:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.status { font: 12px var(--font-mono); color: var(--mute); }
+
+.device { background: linear-gradient(180deg, #172233, var(--panel)); border: 1px solid var(--line); border-radius: 18px;
+          padding: 20px; display: grid; gap: 18px; }
+.top { display: grid; grid-template-columns: 200px 290px 1fr; gap: 22px; align-items: start; }
+.label { font: 600 10px var(--font-mono); letter-spacing: .14em; color: var(--mute); text-transform: uppercase; }
+.fn { font: 600 10px var(--font-mono); letter-spacing: .06em; color: var(--amber); }
+
+/* faders, wheels */
+.faders { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; justify-items: center; }
+.fader { display: grid; justify-items: center; gap: 6px; }
+.fader input { writing-mode: vertical-lr; direction: rtl; width: 22px; height: 120px; accent-color: var(--blue); }
+.fader .fn { font-size: 9px; text-align: center; }
+.wheels { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.wheel { display: grid; gap: 4px; }
+.wheel input { width: 100%; accent-color: var(--blue); }
+
+/* screen */
+.screenbox { display: grid; gap: 10px; justify-items: center; }
+canvas#lcd { width: 264px; height: 264px; image-rendering: pixelated; border-radius: 10px; border: 6px solid #05080d;
+             background: #000; box-shadow: 0 0 0 1px var(--line); }
+.nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 264px; }
+
+/* hardware buttons */
+.hw { position: relative; font: 600 11px var(--font-mono); color: var(--ink); background: var(--well); border: 1px solid var(--line);
+      border-radius: 7px; padding: 8px 4px 6px; cursor: pointer; display: grid; gap: 3px; justify-items: center;
+      user-select: none; -webkit-user-select: none; touch-action: none; }
+.hw small { font: 600 9px var(--font-mono); color: var(--amber); letter-spacing: .03em; }
+.hw.dim small { color: var(--mute); }
+.hw.on { border-color: var(--led); box-shadow: 0 0 0 1px var(--led), 0 0 12px rgba(255,59,59,.35); }
+.hw.down { transform: translateY(1px); background: #1b2738; }
+.buttons { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; }
+
+/* knobs */
+.knobs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; }
+.knob { display: grid; justify-items: center; gap: 4px; user-select: none; -webkit-user-select: none; }
+.knob .dial { width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #33435a, #121a26 70%);
+              border: 1px solid var(--line); position: relative; cursor: ns-resize; touch-action: none; }
+.knob .dial::after { content: ""; position: absolute; left: 50%; top: 5px; width: 3px; height: 13px; margin-left: -1.5px;
+                     background: var(--ink); border-radius: 2px; transform-origin: 50% 18px; transform: rotate(var(--a, 0deg)); }
+.knob .row { display: flex; gap: 4px; align-items: center; }
+.knob .row button { width: 22px; height: 20px; padding: 0; font: 600 13px var(--font-mono); color: var(--mute);
+                    background: none; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+.knob .name { font: 600 10px var(--font-mono); color: var(--mute); }
+
+/* pads */
+.pads { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 14px; }
+.pad { aspect-ratio: 1 / 1; border-radius: 8px; border: 1px solid #2c3a4e; background: #0c121b; cursor: pointer;
+       font: 600 11px var(--font-mono); color: rgba(230,236,243,.75); display: grid; place-items: center; user-select: none;
+       -webkit-user-select: none; touch-action: none; transition: background .06s; }
+.pad.down { transform: scale(.96); }
+.padhint { font: 11px var(--font-body); color: var(--mute); margin-top: 6px; }
+
+/* keyboard */
+.kb { position: relative; height: 150px; background: #05080d; border-radius: 10px; padding: 6px; overflow-x: auto; }
+.keys { position: relative; height: 100%; min-width: 760px; }
+.key { position: absolute; top: 0; border-radius: 0 0 6px 6px; cursor: pointer; user-select: none; -webkit-user-select: none;
+       touch-action: none; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px;
+       font: 10px var(--font-mono); color: #6b7280; }
+.key.w { background: #eef1f4; height: 100%; border: 1px solid #b7bec7; z-index: 1; }
+.key.b { background: #151a21; height: 60%; z-index: 2; border: 1px solid #000; }
+.key.w.down { background: #ffd7a3; }
+.key.b.down { background: #a35c00; }
+.kbfoot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; font: 12px var(--font-mono); color: var(--mute); }
+.kbfoot input { accent-color: var(--blue); vertical-align: middle; }
+
+/* guide */
+.guide { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.card h2 { margin: 0 0 10px; font-size: 16px; font-weight: 600; }
+.card p, .card li { font-size: 14px; line-height: 1.5; color: #c6d0dc; max-width: 65ch; }
+.card ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+td { padding: 5px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+td:first-child { font: 600 12px var(--font-mono); color: var(--amber); white-space: nowrap; }
+.warn { border-color: #5a3a12; }
+.warn h2 { color: var(--amber); }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(5,8,13,.55); border-radius: 10px; }
+.screenwrap { position: relative; }
+
+@media (max-width: 960px) {
+  .top { grid-template-columns: 1fr; }
+  .buttons { grid-template-columns: repeat(6, 1fr); }
+}
+@media (max-width: 420px) {
+  .buttons { grid-template-columns: repeat(4, 1fr); }
+  .pads { gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>WORSHIP <span>·</span> SMK-37 Pro</h1>
+      <p class="sub">O firmware de verdade rodando no navegador: pad ambiente por tom, setlist do culto, teclas e lead. Teste antes de gravar no teclado.</p>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="power" type="button">Ligar o som</button>
+      <button class="btn" id="reboot" type="button">Desligar e ligar</button>
+      <button class="btn" id="wipe" type="button">Apagar setlist</button>
+    </div>
+  </header>
+
+  <section class="device" aria-label="Painel do SMK-37 Pro">
+    <div class="top">
+      <div>
+        <div class="label">Faders</div>
+        <div class="faders" id="faders"></div>
+        <div class="wheels">
+          <label class="wheel"><span class="label">Pitch</span><input id="pitch" type="range" min="-100" max="100" value="0"><span class="fn">curva o lead</span></label>
+          <label class="wheel"><span class="label">Mod</span><input id="mod" type="range" min="0" max="100" value="0"><span class="fn">swell do pad</span></label>
+        </div>
+        <div class="buttons" style="grid-template-columns:1fr 1fr; margin-top:14px" id="banks"></div>
+      </div>
+      <div class="screenbox">
+        <div class="screenwrap">
+          <canvas id="lcd" width="240" height="240" aria-label="Tela do teclado"></canvas>
+          <div class="overlay" id="overlay"><button class="btn primary" id="power2" type="button">Ligar o som</button></div>
+        </div>
+        <div class="nav" id="nav"></div>
+      </div>
+      <div>
+        <div class="label">Knobs <span class="status">arraste para cima / baixo, roda do mouse ou − +</span></div>
+        <div class="knobs" id="knobs" style="margin-top:8px"></div>
+        <div class="pads" id="pads"></div>
+        <div class="padhint" id="padhint">Pads: tom do pad (C D E F G A B em cima, sustenidos embaixo, PARAR no último de cima)</div>
+      </div>
+    </div>
+    <div class="buttons" id="buttons"></div>
+    <div class="kb"><div class="keys" id="keys"></div></div>
+    <div class="kbfoot">
+      <span>Teclado do computador: A W S E D F T G Y H U J K O L P ; (C4 a E5) · Z / X oitava</span>
+      <label>Velocity <input id="vel" type="range" min="20" max="127" value="100"> <span id="velv">100</span></label>
+      <span class="status" id="status">pronto</span>
+    </div>
+  </section>
+
+  <section class="guide">
+    <div class="card">
+      <h2>Comece por aqui</h2>
+      <ul>
+        <li>Clique em <b>Ligar o som</b>, depois toque o pad <b>G</b> (quinto de cima): o pad ambiente entra em G.</li>
+        <li>Toque <b>C</b>: o pad faz a transição para C, sem cortar.</li>
+        <li>Toque as teclas (ou A S D F no computador). <b>ARP</b> troca o modo: TECLAS, SOLO, SOMA, DIVIDIR.</li>
+        <li><b>SEQ</b> mostra o setlist. Segure um pad 1 segundo para salvar a música ali; toque para carregar.</li>
+        <li><b>&lt; &gt;</b> passam para a música anterior / próxima durante o culto.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Knobs e faders</h2>
+      <table>
+        <tr><td>K1</td><td>Volume geral</td></tr>
+        <tr><td>K2 · K3 · K4</td><td>Timbre das TECLAS · do LEAD · do PAD</td></tr>
+        <tr><td>K5 · K6</td><td>BRILHO do pad · TRANSIÇÃO (tempo do crossfade)</td></tr>
+        <tr><td>K7 · K8</td><td>DELAY do lead (colcheia pontuada) · BPM</td></tr>
+        <tr><td>Faders</td><td>1 TECLAS · 2 PAD · 3 LEAD · 4 AMBIÊNCIA (reverb)</td></tr>
+        <tr><td>Mod</td><td>Swell: abre o pad e sobe um pouco o volume</td></tr>
+      </table>
+    </div>
+    <div class="card warn">
+      <h2>Simulação, não o teclado</h2>
+      <p>É o mesmo código C do firmware, compilado para o navegador. Som, telas e setlist se comportam como no SMK-37, mas o timing das teclas e a CPU são do seu computador. O setlist fica salvo só neste navegador.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+const WASM_B64 = "__WASM_BASE64__";
+const STORE_A = 0x9D000, STORE_B = 0xBB000;          // the SMK store (FL_DATA): settings, projects, WORSHIP's setlist
+const LS_KEY = "worship-smk37-flash-v1";
+const FS = 44100;
+const $ = (id) => document.getElementById(id);
+
+let mod = null, ex = null, ac = null, node = null, mem8 = null;
+let buttons = 0, lastDraws = -1, lastWrites = -1, saveTimer = 0;
+const queue = [];                                    // input, applied between 128-frame slices (a tap never lost)
+
+function b64bytes(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+function loadSectors() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch (e) { return {}; } }
+function saveSectors() {
+  if (!ex) return;
+  const nor = new Uint8Array(ex.memory.buffer, ex.web_nor(), ex.web_nor_size()), out = {};
+  for (let off = STORE_A; off < STORE_B; off += 4096) {
+    const s = nor.subarray(off, off + 4096);
+    if (s.some((v) => v !== 0xFF)) { let t = ""; for (let i = 0; i < 4096; i++) t += String.fromCharCode(s[i]); out[off] = btoa(t); }
+  }
+  try { localStorage.setItem(LS_KEY, JSON.stringify(out)); } catch (e) { /* no storage: this session only */ }
+}
+
+async function boot(keepFlash) {
+  if (!mod) mod = await WebAssembly.compile(b64bytes(WASM_B64));
+  const inst = await WebAssembly.instantiate(mod, {});
+  ex = inst.exports;
+  ex.web_nor_erase();
+  if (keepFlash) {
+    const nor = new Uint8Array(ex.memory.buffer, ex.web_nor(), ex.web_nor_size()), sec = loadSectors();
+    for (const [k, v] of Object.entries(sec)) {
+      const off = +k; if (off < STORE_A || off >= STORE_B) continue;
+      const b = atob(v); for (let i = 0; i < 4096 && i < b.length; i++) nor[off + i] = b.charCodeAt(i);
+    }
+  }
+  ex.web_wheels(540, 629);
+  faders.forEach((f, i) => ex.web_fader(i, +f.value));
+  ex.web_boot();
+  lastDraws = -1; lastWrites = ex.web_flash_writes_count();
+  render(1200);                                     // the splash, then the WORSHIP screen (silent until the sound is on)
+  draw();
+}
+
+function render(ms) { let n = Math.round(ms * FS / 1000); while (n > 0) { const k = Math.min(1024, n); ex.web_render(k); n -= k; } }
+
+let sliceN = 0;
+const pressedAt = new Map();
+function applyQueue() {
+  while (queue.length) {
+    const e = queue[0];
+    if (e.up && pressedAt.has(e.t) && sliceN - pressedAt.get(e.t) < 3) break;   // hold a tap at least 3 slices
+    queue.shift();
+    e.fn();
+    if (!e.up) pressedAt.set(e.t, sliceN);
+  }
+}
+function push(t, up, fn) { queue.push({ t, up, fn }); if (!ac) applyQueue(); }
+
+function startAudio() {
+  if (ac) { ac.resume(); return; }
+  try { ac = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: FS }); }
+  catch (e) { ac = new (window.AudioContext || window.webkitAudioContext)(); }
+  node = ac.createScriptProcessor(1024, 0, 2);
+  node.onaudioprocess = (ev) => {
+    const L = ev.outputBuffer.getChannelData(0), R = ev.outputBuffer.getChannelData(1);
+    if (!ex) { L.fill(0); R.fill(0); return; }
+    const ol = new Float32Array(ex.memory.buffer, ex.web_out_l(), 1024), or = new Float32Array(ex.memory.buffer, ex.web_out_r(), 1024);
+    for (let o = 0; o < L.length; o += 128) {
+      applyQueue();
+      ex.web_render(128);
+      L.set(ol.subarray(0, 128), o);
+      R.set(or.subarray(0, 128), o);
+      sliceN++;
+    }
+  };
+  node.connect(ac.destination);
+  $("overlay").style.display = "none";
+  $("power").textContent = "Som ligado";
+  $("status").textContent = ac.sampleRate === FS ? "44,1 kHz" : "taxa " + ac.sampleRate + " Hz (o som fica mais agudo/grave)";
+}
+
+// ---------------------------------------------------------------- the screen, the lights
+const lcd = $("lcd").getContext("2d"), img = lcd.createImageData(240, 240);
+function draw() {
+  if (!ex) return;
+  const d = ex.web_screen_draws();
+  if (d !== lastDraws) {
+    lastDraws = d;
+    const fb = new Uint16Array(ex.memory.buffer, ex.web_screen(), 240 * 240), px = img.data;
+    for (let i = 0; i < 240 * 240; i++) {
+      const c = ((fb[i] >> 8) | (fb[i] << 8)) & 0xFFFF;
+      px[4 * i] = (c >> 11) << 3; px[4 * i + 1] = ((c >> 5) & 63) << 2; px[4 * i + 2] = (c & 31) << 3; px[4 * i + 3] = 255;
+    }
+    lcd.putImageData(img, 0, 0);
+  }
+  const lit = ex.web_lit_buttons();
+  hwEls.forEach((el, id) => el && el.classList.toggle("on", !!((lit >> id) & 1)));
+  const pc = new Uint32Array(ex.memory.buffer, ex.web_pad_colours(), 16);
+  padEls.forEach((el, p) => {
+    const c = pc[p], g = (c >> 16) & 255, r = (c >> 8) & 255, b = c & 255;
+    const k = Math.max(r, g, b), s = k ? (0.2 + 0.8 * Math.sqrt(k / 255)) * 255 / k : 0;   // the LED's hue, a screen's brightness
+    el.style.background = k < 4 ? "#0c121b" : `rgb(${Math.round(r * s)},${Math.round(g * s)},${Math.round(b * s)})`;
+    el.style.boxShadow = k > 80 ? `0 0 14px rgba(${r},${g},${b},.55)` : "none";
+    el.style.color = k > 140 ? "#140b00" : "rgba(230,236,243,.75)";
+  });
+  const worship = ex.web_worship();
+  padEls.forEach((el, p) => el.textContent = worship ? (padLabelsW[p] || "") : "");
+  $("padhint").textContent = worship ? "Pads: tom do pad (sustenidos embaixo, PARAR no último de cima) · SEQ = setlist (toque carrega, segure salva)" : "Modo SYNTH: os pads tocam notas (GLOBE volta ao WORSHIP)";
+  const w = ex.web_flash_writes_count();
+  if (w !== lastWrites) { lastWrites = w; clearTimeout(saveTimer); saveTimer = setTimeout(saveSectors, 400); }
+}
+function frame() { if (ac && ex) draw(); else if (ex && !ac) draw(); requestAnimationFrame(frame); }
+
+// ---------------------------------------------------------------- the panel
+const BTN = [ // id, label, worship function
+  [12, "PATCH", "SILENCIAR"], [13, "PARA", ""], [8, "SCALE", ""], [9, "CHORD", "PAD ON/OFF"], [6, "ARP", "MODO"],
+  [7, "NOTE REP", "TAP"], [10, "GLOBE", "SYNTH"], [11, "BT", "SALVAR"], [14, "FX", ""], [15, "SEQ", "SETLIST"],
+  [16, "▶ PLAY", ""], [17, "● REC", ""]];
+const NAV = [[2, "◀", "MÚSICA"], [4, "OCT −", "OITAVA"], [5, "OCT +", "OITAVA"], [3, "▶", "MÚSICA"]];
+const BANKS = [[0, "KNOB BANK", ""], [1, "FADER BANK", ""]];
+const hwEls = [];
+function mkButton(parent, [id, label, fn]) {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "hw" + (fn ? "" : " dim"); b.id = "hw" + id;
+  b.innerHTML = `${label}<small>${fn || "–"}</small>`;
+  const down = (e) => { e.preventDefault(); b.classList.add("down"); buttons |= 1 << id; const m = buttons; push("b" + id, false, () => ex.web_buttons(m)); b.setPointerCapture?.(e.pointerId); };
+  const up = () => { if (!b.classList.contains("down")) return; b.classList.remove("down"); buttons &= ~(1 << id); const m = buttons; push("b" + id, true, () => ex.web_buttons(m)); };
+  b.addEventListener("pointerdown", down); b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up);
+  b.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && !e.repeat) down(e); });
+  b.addEventListener("keyup", (e) => { if (e.key === "Enter" || e.key === " ") up(); });
+  parent.appendChild(b); hwEls[id] = b;
+}
+BTN.forEach((x) => mkButton($("buttons"), x));
+NAV.forEach((x) => mkButton($("nav"), x));
+BANKS.forEach((x) => mkButton($("banks"), x));
+
+const KNOBS = [["K1", "VOLUME"], ["K2", "TECLAS"], ["K3", "LEAD"], ["K4", "PAD"], ["K5", "BRILHO"], ["K6", "TRANSIÇÃO"], ["K7", "DELAY"], ["K8", "BPM"]];
+KNOBS.forEach(([name, fn], k) => {
+  const el = document.createElement("div"); el.className = "knob";
+  el.innerHTML = `<div class="dial" tabindex="0" role="slider" aria-label="${name} ${fn}"></div><div class="row"><button type="button" aria-label="${name} menos">−</button><span class="name">${name}</span><button type="button" aria-label="${name} mais">+</button></div><span class="fn">${fn}</span>`;
+  const dial = el.querySelector(".dial"); let ang = 0, y0 = null, acc = 0;
+  const turn = (n) => { if (!n) return; ang += n * 12; dial.style.setProperty("--a", ang + "deg"); push("k" + k, false, () => ex.web_knob(k, n)); };
+  dial.addEventListener("pointerdown", (e) => { y0 = e.clientY; acc = 0; dial.setPointerCapture(e.pointerId); });
+  dial.addEventListener("pointermove", (e) => { if (y0 === null) return; acc += y0 - e.clientY; y0 = e.clientY; const n = Math.trunc(acc / 10); if (n) { acc -= n * 10; turn(n); } });
+  dial.addEventListener("pointerup", () => { y0 = null; });
+  dial.addEventListener("wheel", (e) => { e.preventDefault(); turn(e.deltaY < 0 ? 1 : -1); }, { passive: false });
+  dial.addEventListener("keydown", (e) => { if (e.key === "ArrowUp" || e.key === "ArrowRight") turn(1); if (e.key === "ArrowDown" || e.key === "ArrowLeft") turn(-1); });
+  const [minus, plus] = el.querySelectorAll("button");
+  minus.addEventListener("click", () => turn(-1)); plus.addEventListener("click", () => turn(1));
+  $("knobs").appendChild(el);
+});
+
+const FADERS = ["TECLAS", "PAD", "LEAD", "AMBIÊNCIA"];
+const faders = FADERS.map((fn, i) => {
+  const w = document.createElement("label"); w.className = "fader";
+  w.innerHTML = `<input type="range" min="0" max="127" value="${[100, 104, 100, 80][i]}" aria-label="Fader ${i + 1} ${fn}"><span class="label">F${i + 1}</span><span class="fn">${fn}</span>`;
+  const inp = w.querySelector("input");
+  inp.addEventListener("input", () => { const v = +inp.value; push("f" + i, false, () => ex.web_fader(i, v)); });
+  $("faders").appendChild(w); return inp;
+});
+const wheels = () => { const p = +$("pitch").value, m = +$("mod").value; push("w", false, () => ex.web_wheels(540 + p, Math.round(629 - m * 1.55))); };
+$("pitch").addEventListener("input", wheels); $("mod").addEventListener("input", wheels);
+$("pitch").addEventListener("pointerup", () => { $("pitch").value = 0; wheels(); });
+$("pitch").addEventListener("change", () => { $("pitch").value = 0; wheels(); });
+
+// pads: hardware 0..7 the top row, 8..15 the bottom
+const padLabelsW = ["C", "D", "E", "F", "G", "A", "B", "PARAR", "C#", "D#", "", "F#", "G#", "A#", "", ""];
+const padEls = [];
+for (let p = 0; p < 16; p++) {
+  const el = document.createElement("div"); el.className = "pad"; el.tabIndex = 0; el.setAttribute("role", "button");
+  el.setAttribute("aria-label", "Pad " + (p + 1));
+  const down = (e) => { e.preventDefault(); if (el.classList.contains("down")) return; el.classList.add("down"); const v = +$("vel").value; push("p" + p, false, () => ex.web_pad(p, v)); el.setPointerCapture?.(e.pointerId); };
+  const up = () => { if (!el.classList.contains("down")) return; el.classList.remove("down"); push("p" + p, true, () => ex.web_pad(p, 0)); };
+  el.addEventListener("pointerdown", down); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+  el.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && !e.repeat) down(e); });
+  el.addEventListener("keyup", (e) => { if (e.key === "Enter" || e.key === " ") up(); });
+  $("pads").appendChild(el); padEls.push(el);
+}
+
+// the 37 keys, C3 (keybed 0) .. C6 (36)
+const keyEls = [], WHITE = [0, 2, 4, 5, 7, 9, 11];
+(function buildKeys() {
+  const host = $("keys"), nw = 22, ww = 100 / nw; let wi = 0;
+  for (let k = 0; k < 37; k++) {
+    const pc = k % 12, white = WHITE.includes(pc), el = document.createElement("div");
+    el.className = "key " + (white ? "w" : "b");
+    if (white) { el.style.left = (wi * ww) + "%"; el.style.width = ww + "%"; if (pc === 0) el.textContent = "C" + (3 + k / 12); wi++; }
+    else { el.style.left = (wi * ww - ww * 0.3) + "%"; el.style.width = (ww * 0.6) + "%"; }
+    const down = (e) => { e?.preventDefault?.(); if (el.classList.contains("down")) return; el.classList.add("down"); const v = +$("vel").value; push("k" + k + "x", false, () => ex.web_key(k, v)); };
+    const up = () => { if (!el.classList.contains("down")) return; el.classList.remove("down"); push("k" + k + "x", true, () => ex.web_key(k, 0)); };
+    el.addEventListener("pointerdown", (e) => { down(e); el.setPointerCapture?.(e.pointerId); });
+    el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+    el.addEventListener("pointerenter", (e) => { if (e.buttons & 1) down(e); });
+    el.addEventListener("pointerleave", up);
+    el._down = down; el._up = up;
+    host.appendChild(el); keyEls.push(el);
+  }
+})();
+const QWERTY = "awsedftgyhujkolp;";
+let qOct = 0;
+window.addEventListener("keydown", (e) => {
+  if (e.repeat || e.metaKey || e.ctrlKey || e.target.tagName === "INPUT" || e.target.classList?.contains("hw")) return;
+  const key = e.key.toLowerCase();
+  if (key === "z") { qOct = Math.max(-1, qOct - 1); return; }
+  if (key === "x") { qOct = Math.min(1, qOct + 1); return; }
+  const i = QWERTY.indexOf(key); if (i < 0) return;
+  const k = 12 + i + 12 * qOct; if (k >= 0 && k < 37) keyEls[k]._down(e);
+});
+window.addEventListener("keyup", (e) => {
+  const i = QWERTY.indexOf(e.key.toLowerCase()); if (i < 0) return;
+  for (const o of [-1, 0, 1]) { const k = 12 + i + 12 * o; if (k >= 0 && k < 37) keyEls[k]._up(); }
+});
+$("vel").addEventListener("input", () => { $("velv").textContent = $("vel").value; });
+
+// ---------------------------------------------------------------- power
+$("power").addEventListener("click", startAudio);
+$("power2").addEventListener("click", startAudio);
+$("reboot").addEventListener("click", async () => { saveSectors(); queue.length = 0; buttons = 0; await boot(true); $("status").textContent = "religado: o setlist voltou da memória"; });
+$("wipe").addEventListener("click", async () => { try { localStorage.removeItem(LS_KEY); } catch (e) {} queue.length = 0; buttons = 0; await boot(false); $("status").textContent = "memória apagada"; });
+
+boot(true).then(() => requestAnimationFrame(frame)).catch((e) => { $("status").textContent = "erro ao carregar: " + e.message; });
+</script>
+</body>
+</html>

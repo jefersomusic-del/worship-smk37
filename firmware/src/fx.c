@@ -1063,6 +1063,9 @@ static void mix_block(int32_t *out, uint32_t n)
     for (i = 0; i < NPART; i++)                         /* (one core: as 1.6) */
         mix_part(&trk[i], n);
 #endif
+#if FELUCCA_WORSHIP
+    wp_mix(mix_l, mix_r, send_c, send_r, n);            /* WORSHIP's pad: the dry mix, the chorus and the reverb */
+#endif
     if (perf)
         perf_pre(mix_l, mix_r, send_d, send_r, n);
     fx_buses(send_c, send_d, send_r, wet, n);

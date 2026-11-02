@@ -1568,6 +1568,12 @@ static void ui_draw(void)
 }
 static void ui_draw_page(uint32_t counting)
 {
+#if FELUCCA_WORSHIP
+    if (wor_on && !ui.uboot) {                          /* WORSHIP: its own screen */
+        wor_draw();
+        return;
+    }
+#endif
     if (ui.uboot) {
         draw_uboot();
         draw_head();

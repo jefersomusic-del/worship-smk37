@@ -435,10 +435,46 @@ static void fm1__frame(void)
 #define SMK_PAD_OFF 12u           /* below base + this: released */
 #define SMK_PAD_PEAKN 3u          /* samples (2.4 ms apart) for the peak */
 
+/* RAW pads (WORSHIP, src/worship.c): while smk_pad_raw is set a pad plays no note; its hits and releases go to
+ * smk_padev (hardware pad << 8 | velocity, 0 = released) for the UI. A pad pressed as a note and let go in RAW
+ * mode ends its note as ever; one pressed in RAW mode and let go after it ends there too (smk_pad_rawheld) */
+#define SMK_PADEV_N 32u
+static volatile uint8_t smk_pad_raw;
+static volatile uint16_t smk_pad_rawheld;
+static volatile uint16_t smk_padev[SMK_PADEV_N];
+static volatile uint8_t smk_padev_w, smk_padev_r;
+static int smk__pad_raw(uint32_t pad, uint32_t vel)
+{
+    uint32_t bit = 1u << pad;
+    if (vel ? !smk_pad_raw : !(smk_pad_rawheld & bit))
+        return 0;
+    smk_pad_rawheld = (uint16_t)(vel ? smk_pad_rawheld | bit : smk_pad_rawheld & ~bit);
+    if ((uint8_t)(smk_padev_w - smk_padev_r) < SMK_PADEV_N) {
+        smk_padev[smk_padev_w % SMK_PADEV_N] = (uint16_t)(pad << 8 | (vel & 0x7Fu));
+        __asm__ volatile("" ::: "memory");
+        smk_padev_w++;
+    }
+    return 1;
+}
+static int32_t smk_padev_take(void)                    /* the next pad event, -1 none (main loop) */
+{
+    int32_t e;
+    if (smk_padev_r == smk_padev_w)
+        return -1;
+    e = smk_padev[smk_padev_r % SMK_PADEV_N];
+    __asm__ volatile("" ::: "memory");
+    smk_padev_r++;
+    return e;
+}
+
 static void smk__padq(uint32_t pad, uint32_t vel)     /* a pad hit (vel) or release (0): its white key */
 {
     int32_t n0 = smk_pad_piano ? SMK_PIANO_NOTE[pad] : (int32_t)SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(pad)];
     uint32_t n, bit;
+    if (!vel && smk_pad_note[pad])                     /* (a note pad let go: its note ends, RAW or not) */
+        ;
+    else if (smk__pad_raw(pad, vel))
+        return;
     if (vel) {
         if (n0 < 0)
             return;                                   /* (a gap of the piano layout) */

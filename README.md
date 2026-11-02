@@ -1,5 +1,7 @@
 # Felucca
 
+> **WORSHIP (SMK-37 Pro):** this fork adds a performance mode for church music: an ambient pad by key, a setlist and keys / lead routing. See [WORSHIP.md](WORSHIP.md) (Portuguese).
+
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 
 ![Felucca 1.0](docs/felucca-1.0.png)

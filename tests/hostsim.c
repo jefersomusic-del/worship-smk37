@@ -27,13 +27,18 @@
 #undef memset
 #undef memcpy
 #undef memcmp
+#ifndef HOST_SMK                                /* (web/emu/smk_web.c: the SMK-37's panel, defined before this file) */
 static struct { volatile uint32_t notes, buttons; } fm1_in;
+#endif
 #include "../firmware/src/core.h"
 #include "../firmware/src/engines.c"
 #include "../firmware/src/params.c"
 #include "../firmware/src/mod.c"
 #include "../firmware/src/voice.c"
 #include "../firmware/src/slicer.c"
+#if FELUCCA_WORSHIP
+#include "../firmware/src/worship_dsp.c"           /* (the SMK-37's WORSHIP pad, mixed by fx.c) */
+#endif
 #include "../firmware/src/fx.c"
 static void fm1_delay_ms(uint32_t ms) { (void)ms; }
 #include "../firmware/src/usb.c"

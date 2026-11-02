@@ -57,6 +57,13 @@
 #if FELUCCA_OTA && !FELUCCA_FLASH
 #error "FELUCCA_OTA needs FELUCCA_FLASH"
 #endif
+#ifndef FELUCCA_WORSHIP
+#define FELUCCA_WORSHIP BOARD_SMK37  /* WORSHIP (worship.c): the SMK-37's performance mode for church music: the ambient
+                                  * pad, the setlist, keys / lead routing; GLOBE switches to the synthesizer */
+#endif
+#if FELUCCA_WORSHIP && !BOARD_SMK37
+#error "FELUCCA_WORSHIP: the SMK-37 Pro's pads, faders and wheels (BOARD_SMK37)"
+#endif
 
 /* ------------------------------------------------------------- HAL --- */
 #include <stdint.h>
@@ -96,6 +103,9 @@
 #include "mod.c"               /* the modulation matrix, used by voice.c and fx.c */
 #include "voice.c"
 #include "slicer.c"              /* per-track SLICER insert, used by fx.c */
+#if FELUCCA_WORSHIP
+#include "worship_dsp.c"         /* WORSHIP's ambient pad, mixed by fx.c */
+#endif
 #include "fx.c"
 
 /* ------------------------------------------------- MIDI, sequencer --- */
@@ -126,6 +136,9 @@
 #endif
 #include "upreset.c"             /* user presets (RAM mirror; flash with FELUCCA_FLASH) */
 #include "project.c"
+#if FELUCCA_WORSHIP
+#include "worship.c"             /* WORSHIP: the setlist, the sounds, the routing, its screen */
+#endif
 #if FELUCCA_OTA
 #include "ota.c"
 #include "ota_hw.c"

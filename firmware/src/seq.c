@@ -782,6 +782,15 @@ static void ext_keys_block(void)
         uint32_t k = (uint32_t)e >> 8, v = (uint32_t)e & 0x7Fu, sel = song.sel % NTRK, n, mc;
         if (k >= FM1_NKEY)
             continue;
+#if FELUCCA_WORSHIP
+        if (wor_kmask[k] || (wor_on && !ext_note[k])) {   /* WORSHIP: its routing (worship.c) */
+            if (!v)
+                wor_release(k);
+            else if (!kb_boot_hold && !kb_asleep && !wor_kmask[k])
+                wor_press(k, v);
+            continue;
+        }
+#endif
         if (!v) {
             if (ext_note[k]) {
                 n = ext_note[k] - 1u;
@@ -837,6 +846,13 @@ static void keyboard_block(void)
                 kb_note[k] = KB_SILENT;
                 continue;
             }
+#if FELUCCA_WORSHIP
+            if (wor_on) {                         /* WORSHIP: the keys, the lead or both (worship.c) */
+                kb_note[k] = KB_SILENT;
+                wor_press(SMK_KEY_F3 + k, key_vel(k));
+                continue;
+            }
+#endif
             if (lay) {                            /* a layer's button held (or locked): the key is the layer's */
                 kb_note[k] = KB_SILENT;           /* (ui_layer.c), with FX an effect (perform.c) */
                 kb_layer |= 1u << k;
@@ -857,6 +873,12 @@ static void keyboard_block(void)
             kb_lat(k);
 #endif
         } else {
+#if FELUCCA_WORSHIP
+            if (wor_kmask[SMK_KEY_F3 + k]) {
+                wor_release(SMK_KEY_F3 + k);
+                continue;
+            }
+#endif
             if ((kb_layer >> k) & 1u) {
                 kb_layer &= ~(1u << k);
                 perf_key_press(k, 0);

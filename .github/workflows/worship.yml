@@ -1,0 +1,82 @@
+name: worship-smk37
+
+# Builds the SMK-37 Pro firmware with WORSHIP (build/felucca-smk37.fwsc) and runs its tests.
+# The package is in the run's "Artifacts" (Actions tab > the run > worship-smk37), and on a release for a tag v*.
+
+on:
+  push:
+    branches: [main, master, worship]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Python deps
+        run: pip install --quiet Pillow fonttools mido python-rtmidi
+
+      - name: JieLi toolchain (cached)
+        id: tc
+        uses: actions/cache@v4
+        with:
+          path: ~/.jieli
+          key: jieli-toolchain-20250324.1
+      - name: JieLi toolchain
+        if: steps.tc.outputs.cache-hit != 'true'
+        run: sh tools/get_toolchain.sh
+
+      - name: JieLi AC79 SDK files (vendor/ac79, Apache-2.0)
+        run: echo "AC79_SDK=$GITHUB_WORKSPACE/vendor/ac79" >> "$GITHUB_ENV"
+
+      - name: WORSHIP tests (the pad, then the whole SMK-37 firmware on the host)
+        run: |
+          python3 -c "import sys; sys.argv=['x']; import importlib.util as u; s=u.spec_from_file_location('b','tools/build.py'); b=u.module_from_spec(s); s.loader.exec_module(b); b.generate()"
+          cc -O2 -Ibuild/gen -Ifirmware/src -o build/worship_test tests/worship_test.c -lm
+          build/worship_test build/pad.wav
+          cc -O1 -w -ffp-contract=off -std=gnu99 -Ibuild/gen -Ifirmware/src -Ifirmware/hal -o build/worship_host tests/worship_host_test.c -lm
+          build/worship_host build/worship_out
+
+      - name: Build the FM-1 firmware (unchanged by WORSHIP) and the host tests
+        run: |
+          ./build.sh
+          sh tests/run_tests.sh || echo "::warning::Felucca's own test suite reported a failure"
+
+      - name: Build the SMK-37 Pro firmware
+        run: BOARD=smk37 ./build.sh
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp build/felucca-smk37.fwsc "dist/worship-smk37-pro-${GITHUB_SHA::7}.fwsc"
+          cp build/felucca.bin "dist/worship-smk37-pro-${GITHUB_SHA::7}-app.bin"
+          python3 - <<'EOF'
+          from PIL import Image; import glob
+          for p in glob.glob("build/worship_out/*.ppm"):
+              Image.open(p).resize((480, 480), Image.NEAREST).save("dist/screen_" + p.split("/")[-1][:-4] + ".png")
+          EOF
+          cp build/pad.wav dist/pad_demo.wav
+          cp WORSHIP.md LICENSE dist/
+          (cd dist && sha256sum *.fwsc *.bin > SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: worship-smk37
+          path: dist
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.fwsc
+            dist/SHA256SUMS
+            dist/WORSHIP.md

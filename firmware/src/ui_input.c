@@ -455,6 +455,12 @@ static void ui_leds(void)
     uint32_t fam = cur_fam(), mode = settings_leds, inv = leds_inv();   /* (1.5.6: INV LO 1, INV HI 2) */
     int keys_map = keys_own();
     static uint8_t ready;
+#if FELUCCA_WORSHIP
+    if (wor_on) {                                       /* WORSHIP: its buttons and pads */
+        wor_leds();
+        return;
+    }
+#endif
     if (idle_leds() || fm1_led_anim_on())              /* the idle animation, the power-on sweep have them (main.c */
         return;                                         /* boot_leds) */
     if (!ready) {
@@ -1596,6 +1602,10 @@ static void ui_input(void)
         usb_serial_apply();                             /* (MENU > USB SERIAL: when the menu has closed) */
     settings_later_poll();                              /* (#197: LIST / FAV written once the view is left or idle) */
     follow_poll();                                      /* (1.6, #242: SEQ's roll follows the play position) */
+#if FELUCCA_WORSHIP
+    if (wor_ui_input(pressed, notes))                   /* WORSHIP has the panel (GLOBE: in and out) */
+        return;
+#endif
     if (scr_input(pressed, notes))                      /* MENU > SCREEN OFF: dark, or the wake gesture: swallowed */
         return;                                         /* (before the buttons' timers: no tap or hold after it) */
     if (mom.n && !mom_down()) {                         /* MOMENTARY: LFO let go (or the menu, a layer ..): back */
