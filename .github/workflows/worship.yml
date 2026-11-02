@@ -22,7 +22,7 @@ jobs:
           submodules: recursive
 
       - name: Python deps
-        run: pip install --quiet Pillow fonttools mido python-rtmidi
+        run: pip install --quiet Pillow fonttools
 
       - name: JieLi toolchain (cached)
         id: tc
