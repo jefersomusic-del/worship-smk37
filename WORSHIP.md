@@ -5,6 +5,8 @@ Firmware customizado para tocar no culto: **pad ambiente por tom**, **setlist** 
 com a camada SMK-37 do [genkigenki](https://github.com/genkigenki/fm1-to-smk37). O teclado liga direto
 no WORSHIP; o botão **GLOBE** abre o sintetizador completo do Felucca e volta.
 
+> **Simulador:** https://jefersomusic-del.github.io/worship-smk37/ (o firmware rodando no navegador).
+
 > **Estado:** compilado e testado em simulação (testes do pad, teste de ponta a ponta do firmware SMK-37
 > no computador e o simulador no navegador). **Ainda não rodou num SMK-37 de verdade.** Faça o backup antes
 > e teste com calma antes de levar para um culto.

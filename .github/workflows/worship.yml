@@ -12,6 +12,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   firmware:
@@ -44,6 +46,17 @@ jobs:
           build/worship_test build/pad.wav
           cc -O1 -w -ffp-contract=off -std=gnu99 -Ibuild/gen -Ifirmware/src -Ifirmware/hal -o build/worship_host tests/worship_host_test.c -lm
           build/worship_host build/worship_out
+
+      - name: The browser simulator (the SMK-37 firmware in WebAssembly)
+        run: |
+          sudo apt-get install -y -qq lld > /dev/null
+          WASM_LD=$(ls /usr/bin/wasm-ld* | head -1); [ -x /usr/bin/wasm-ld ] || sudo ln -sf "$WASM_LD" /usr/local/bin/wasm-ld
+          web/smk/build.sh
+          mkdir -p site && cp build/smk/worship-sim.html site/index.html && touch site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
 
       - name: Build the FM-1 firmware (unchanged by WORSHIP) and the host tests
         run: |
@@ -88,3 +101,14 @@ jobs:
             dist/*.fwsc
             dist/SHA256SUMS
             dist/WORSHIP.md
+
+  pages:
+    needs: firmware
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
