@@ -120,6 +120,9 @@ def generate():
             [tools / "gen_tables.py", GEN / "felucca_tables.h"],
             [tools / "gen_fm6_patches.py", GEN / "felucca_fm6.h"],
             [tools / "gen_samples.py", GEN / "felucca_samples.h"]]
+    # WORSHIP's faces (SMK-37: worship.c), in their own header: nothing of the FM-1 build reads it
+    subprocess.run(["sh", str(tools / "gen_worship_fonts.sh"), str(GEN / "worship_fonts.h")], check=True,
+                   stdout=subprocess.DEVNULL)
     procs = [subprocess.Popen([sys.executable, *map(str, c)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               text=True) for c in cmds]
     failed = []
